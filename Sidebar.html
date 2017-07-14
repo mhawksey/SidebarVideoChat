@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+<script src="https://simplewebrtc.com/latest-v2.js"></script>
+<style>
+#side_container {
+	margin: 0 auto;
+	width: 250px;
+}
+#remotes video {
+	height: 150px;
+}
+#localVideo {
+	width: 250px;
+}
+.videoContainer {
+	position: relative;
+	height: 150px;
+	margin: 10px 0;
+}
+.videoContainer video {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+}
+.volume {
+	position: absolute;
+	left: 15%;
+	width: 70%;
+	bottom: 5px;
+	height: 10px;
+	display: none;
+}
+/* https://stackoverflow.com/a/21752471/1027723 */
+@keyframes fadeInOut {
+	 0% {
+	 opacity: 0;
+	}
+	 16% {
+	 opacity: 1;
+	}
+	 84% {
+	 opacity: 1;
+	}
+	 100% {
+	 opacity: 0;
+	}
+}
+.connectionstate {
+	position: absolute;
+	top: 0px;
+	width: 100%;
+	text-align: center;
+	color: #fff;
+	opacity: 0;
+	text-align: center;
+	-webkit-animation: fadeInOut 6s;
+	animation: fadeInOut 6s;
+}
+#localScreenContainer {
+	display: none;
+}
+.muted, .paused {
+
+}
+.muted {
+
+}
+.paused {
+
+}
+.videoContainer button {
+	position: absolute;
+	top: 5px;
+	opacity: 0;
+	cursor: pointer;
+	transition: opacity 0.5s ease-in-out;
+	-moz-transition: opacity 0.5s ease-in-out;
+	-webkit-transition: opacity 0.5s ease-in-out;
+}
+#local_audio, [id^=mute_but] {
+	left: 30px;
+}
+#local_video {
+	right: 30px;
+}
+.videoContainer:hover button {
+	opacity: 1;
+}
+</style>
+</head>
+<body>
+<div id="side_container">
+  <div class="videoContainer">
+    <video height="300" id="localVideo"></video>
+    <meter id="localVolume" class="volume" min="-45" max="-20" high="-25" low="-40" style="display: inline-block;"></meter>
+    <button id="local_audio" class="create">Audio</button>
+    <button id="local_video" class="create">Video</button>
+  </div>
+  <div id="remotes"></div>
+</div>
+<script>
+   
+var x_data = {};
+
+$(function() {
+  google.script.run.withSuccessHandler(init).getXData(); 
+});
+
+function init(d){
+  x_data = d;
+  $.ajax({url: d.url,
+          type: "PUT",
+          async: false,
+          headers: {
+               "Authorization": "Basic " + d.auth
+          },
+          success: function (res){
+                     console.log("ICE List: "+res.v.iceServers);
+                     peerConnectionConfig = res.v;
+                     if(peerConnectionConfig !=null){
+                        start(peerConnectionConfig);
+                     } else {
+                        console.log('/ice error - ', res);
+                     }
+                   }
+          });	
+}
+    
+//success callback handler which should provide peerConnectionConfig data
+function start(peerConnectionConfig) {
+	 // create our webrtc connection
+	var webrtc = new SimpleWebRTC({
+	  // the id/element dom element that will hold "our" video
+	  localVideoEl: 'localVideo',
+	  // the id/element dom element that will hold remote videos
+	  remoteVideosEl: '',
+	  // immediately ask for camera access
+	  autoRequestMedia: true,
+	  debug: false,
+	  detectSpeakingEvents: true,
+      nick: x_data.nick,
+	  autoAdjustMic: true,
+      // Add the new peerConnectionConfig object
+      peerConnectionConfig: peerConnectionConfig
+	});
+
+	// when it's ready, join if we got a room from the URL
+	webrtc.on('readyToCall', function () {
+		console.log(x_data.room);
+		webrtc.joinRoom(x_data.room);
+	});
+
+	 // we got access to the camera
+	webrtc.on('localStream', function (stream) {
+		$('#localVolume').show();
+		stream.onclick = function (){
+		  console.log("video clicked");
+		}
+	});
+	// we did not get access to the camera
+	webrtc.on('localMediaError', function (err) {
+	});
+
+	// a peer video has been added
+	webrtc.on('videoAdded', function (video, peer) {
+		console.log('remote video added', peer);
+		var remotes = document.getElementById('remotes');
+		if (remotes) {
+            console.log("Have remotes..");
+			var container = document.createElement('div');
+			container.className = 'videoContainer';
+            console.log('Appending container_' + webrtc.getDomId(peer));
+			container.id = 'container_' + webrtc.getDomId(peer);
+			container.appendChild(video);
+            
+			// suppress contextmenu
+			video.oncontextmenu = function () { return false; };
+            
+            remotes.appendChild(container);
+
+			// resize the video on click
+			video.onclick = function () {
+				console.log("video clicked");
+			};
+
+			// show the remote volume
+			var vol = document.createElement('meter');
+			vol.id = 'volume_' + peer.id;
+			vol.className = 'volume';
+			vol.min = -45;
+			vol.max = -20;
+			vol.low = -40;
+			vol.high = -25;
+			container.appendChild(vol);
+            
+            // add mute button
+            var mute_but = document.createElement('button');
+            mute_but.id = 'mute_but_' + peer.id;
+            mute_but.className = 'create';
+            container.appendChild(mute_but);
+            
+            // add if muted 
+			var muted = document.createElement('span');
+			vol.className = 'muted';
+			container.appendChild(muted);
+            
+			// show the ice connection state
+			if (peer && peer.pc) {
+				var connstate = document.createElement('div');
+				connstate.className = 'connectionstate';
+				container.appendChild(connstate);
+				peer.pc.on('iceConnectionStateChange', function (event) {
+					switch (peer.pc.iceConnectionState) {
+					case 'checking':
+						connstate.innerText = 'Connecting to peer...';
+						break;
+					case 'connected':
+					case 'completed': // on caller side
+						$(vol).show();
+						connstate.innerText = 'Connection established.';
+						break;
+					case 'disconnected':
+						connstate.innerText = 'Disconnected.';
+						break;
+					case 'failed':
+						connstate.innerText = 'Connection failed.';
+						break;
+					case 'closed':
+						connstate.innerText = 'Connection closed.';
+						break;
+					}
+				});
+			}
+
+
+            
+		}
+	});
+	// a peer was removed
+	webrtc.on('videoRemoved', function (video, peer) {
+		console.log('video removed ', peer);
+		var remotes = document.getElementById('remotes');
+		var el = document.getElementById(peer ? 'container_' + webrtc.getDomId(peer) : 'localScreenContainer');
+		if (remotes && el) {
+			remotes.removeChild(el);
+		}
+	});
+
+	// local volume has changed
+	webrtc.on('volumeChange', function (volume, treshold) {
+		showVolume(document.getElementById('localVolume'), volume);
+	});
+	// remote volume has changed
+	webrtc.on('remoteVolumeChange', function (peer, volume) {
+		showVolume(document.getElementById('volume_' + peer.id), volume);
+	});
+
+	// local p2p/ice failure
+	webrtc.on('iceFailed', function (peer) {
+		var connstate = document.querySelector('#container_' + webrtc.getDomId(peer) + ' .connectionstate');
+		console.log('local fail', connstate);
+		if (connstate) {
+			connstate.innerText = 'Connection failed.';
+			fileinput.disabled = 'disabled';
+		}
+	});
+
+	// remote p2p/ice failure
+	webrtc.on('connectivityError', function (peer) {
+		var connstate = document.querySelector('#container_' + webrtc.getDomId(peer) + ' .connectionstate');
+		console.log('remote fail', connstate);
+		if (connstate) {
+			connstate.innerText = 'Connection failed.';
+			fileinput.disabled = 'disabled';
+		}
+	});  
+
+	// listen for mute and unmute events
+	webrtc.on('mute', function (data) { // show muted symbol
+		webrtc.getPeers(data.id).forEach(function (peer) {
+			if (data.name == 'audio') {
+				$('#container_' + webrtc.getDomId(peer) + ' .muted').show();
+			} else if (data.name == 'video') {
+				$('#container_' + webrtc.getDomId(peer) + ' .paused').show();
+				$('#container_' + webrtc.getDomId(peer) + ' video').hide();
+			}
+		});
+	});
+	webrtc.on('unmute', function (data) { // hide muted symbol
+		webrtc.getPeers(data.id).forEach(function (peer) {
+			if (data.name == 'audio') {
+				$('#container_' + webrtc.getDomId(peer) + ' .muted').hide();
+			} else if (data.name == 'video') {
+				$('#container_' + webrtc.getDomId(peer) + ' video').show();
+				$('#container_' + webrtc.getDomId(peer) + ' .paused').hide();
+			}
+		});
+	});
+    
+    (function($){
+       $(function(){
+         function mute() {
+            webrtc.mute();
+            $( this ).removeClass( "create" );
+            $(this).one("click", unmute);
+          }
+          function unmute() {
+              webrtc.unmute();
+              $( this ).addClass( "create" );
+              $(this).one("click", mute);
+          }
+          $("#local_audio").one("click", mute);
+          
+          function pause() {
+            webrtc.pause();
+            $( this ).removeClass( "create" );
+            if ($("#local_audio").hasClass("create")) {
+              webrtc.unmute();
+            }
+            $(this).one("click", resume);
+          }
+          function resume() {
+            webrtc.resume();
+            if (!$("#local_audio").hasClass("create")) {
+              webrtc.mute();
+            }
+            $( this ).addClass( "create" );
+            $(this).one("click", pause);
+          }
+          $("#local_video").one("click", pause);
+      });
+    }(jQuery));
+}
+
+function showVolume(el, volume) {
+	if (!el) return;
+	if (volume < -45) volume = -45; // -45 to -20 is
+	if (volume > -20) volume = -20; // a good range
+	el.value = volume;
+}
+</script>
+</body>
+</html>
