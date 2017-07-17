@@ -3,7 +3,12 @@
 <head>
 <link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">
 <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
-<script src="https://simplewebrtc.com/latest-v2.js"></script>
+<?!= include('simplewebrtc.bundle.js'); ?>
+<?!= include('xirsys.core.js'); ?>
+<?!= //include('xirsys.api.js'); ?>
+<?!= include('xirsys.signal.js'); ?>
+<?!= include('xirsys.simplewebrtc.connection.js'); ?>
+<?!= include('xirsys.simplewebrtc.js'); ?>
 <style>
 #side_container {
 	margin: 0 auto;
@@ -103,54 +108,38 @@
 </div>
 <script>
    
-var x_data = {};
+var xirsysConnect = {};
+var webrtc = new $xirsys.simplewebrtc();
 
 $(function() {
   google.script.run.withSuccessHandler(init).getXData(); 
 });
 
 function init(d){
-  x_data = d;
-  $.ajax({url: d.url,
-          type: "PUT",
-          async: false,
-          headers: {
-               "Authorization": "Basic " + d.auth
-          },
-          success: function (res){
-                     console.log("ICE List: "+res.v.iceServers);
-                     peerConnectionConfig = res.v;
-                     if(peerConnectionConfig !=null){
-                        start(peerConnectionConfig);
-                     } else {
-                        console.log('/ice error - ', res);
-                     }
-                   }
-          });	
+  xirsysConnect = d;
+  webrtc.connect(
+                xirsysConnect.data,
+                {
+                    localVideoEl: 'localVideo', // the id/dom element to hold "our" video
+                    remoteVideosEl: '', // the id/dom element to hold remote videos // Should this be 'remotes' instead?
+                    autoRequestMedia: true, // immediately ask for camera access
+                    debug: true,
+                    detectSpeakingEvents: false,
+                    nick: d.nick,
+                    autoAdjustMic: true,
+                },
+                application
+            );
 }
     
 //success callback handler which should provide peerConnectionConfig data
-function start(peerConnectionConfig) {
-	 // create our webrtc connection
-	var webrtc = new SimpleWebRTC({
-	  // the id/element dom element that will hold "our" video
-	  localVideoEl: 'localVideo',
-	  // the id/element dom element that will hold remote videos
-	  remoteVideosEl: '',
-	  // immediately ask for camera access
-	  autoRequestMedia: true,
-	  debug: false,
-	  detectSpeakingEvents: true,
-      nick: x_data.nick,
-	  autoAdjustMic: true,
-      // Add the new peerConnectionConfig object
-      peerConnectionConfig: peerConnectionConfig
-	});
-
+function application($inst) {
+	console.log('Application start. Room: '+xirsysConnect.data.room);
 	// when it's ready, join if we got a room from the URL
+    webrtc.prepareRoom(xirsysConnect.data.room);
 	webrtc.on('readyToCall', function () {
-		console.log(x_data.room);
-		webrtc.joinRoom(x_data.room);
+		console.log(xirsysConnect.data.room);
+		webrtc.joinRoom(xirsysConnect.data.room);
 	});
 
 	 // we got access to the camera

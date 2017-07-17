@@ -44,7 +44,8 @@ function onInstall(e) {
  * the mobile add-on version.
  */
 function showSidebar() {
-  var ui = HtmlService.createHtmlOutputFromFile('Sidebar')
+  var ui = HtmlService.createTemplateFromFile('Sidebar')
+      .evaluate()
       .setTitle('Video Chat');
   DocumentApp.getUi().showSidebar(ui);
 }
@@ -52,14 +53,18 @@ function showSidebar() {
 function getXData(){
   var nick = Session.getActiveUser().getEmail();
   nick = nick.substring(0, nick.indexOf("@"));
-
-  var x_data = {
-             url: "https://global.xirsys.net/_turn/SidebarVideoChat/",
-             auth: Utilities.base64Encode("mhawksey:a96470d6-67c8-11e7-9089-eb8da253ad29"),
-             room: DocumentApp.getActiveDocument().getId(),
-             nick: nick
+  
+  var xirsysConnect = {
+	secureTokenRetrieval : false,
+	data : {
+        channel : 'https://global.xirsys.net/_turn/SidebarVideoChat/',
+		btoa : Utilities.base64Encode('mhawksey:a96470d6-67c8-11e7-9089-eb8da253ad29'),
+		room : DocumentApp.getActiveDocument().getId(),
+		secure : 1
+	},
+    nick : nick
   };
-  return x_data;
+  return xirsysConnect;
 }
 
 function include(filename) {
