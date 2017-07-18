@@ -106,46 +106,30 @@
 var x_data = {};
 
 $(function() {
-  google.script.run.withSuccessHandler(init).getXData(); 
+  google.script.run.withSuccessHandler(start).getXData(); 
 });
 
-function init(d){
-  x_data = d;
-  $.ajax({url: d.url,
-          type: "PUT",
-          async: false,
-          headers: {
-               "Authorization": "Basic " + d.auth
-          },
-          success: function (res){
-                     console.log("ICE List: "+res.v.iceServers);
-                     peerConnectionConfig = res.v;
-                     if(peerConnectionConfig !=null){
-                        start(peerConnectionConfig);
-                     } else {
-                        console.log('/ice error - ', res);
-                     }
-                   }
-          });	
-}
-    
+          
 //success callback handler which should provide peerConnectionConfig data
-function start(peerConnectionConfig) {
-	 // create our webrtc connection
-	var webrtc = new SimpleWebRTC({
-	  // the id/element dom element that will hold "our" video
-	  localVideoEl: 'localVideo',
-	  // the id/element dom element that will hold remote videos
-	  remoteVideosEl: '',
-	  // immediately ask for camera access
-	  autoRequestMedia: true,
-	  debug: false,
-	  detectSpeakingEvents: true,
-      nick: x_data.nick,
-	  autoAdjustMic: true,
-      // Add the new peerConnectionConfig object
-      peerConnectionConfig: peerConnectionConfig
-	});
+function start(d) {
+  x_data = d;
+  console.log(x_data);
+  // create our webrtc connection
+  var webrtc = new SimpleWebRTC({
+    // the id/element dom element that will hold "our" video
+    localVideoEl: 'localVideo',
+    // the id/element dom element that will hold remote videos
+    remoteVideosEl: '',
+    // immediately ask for camera access
+    autoRequestMedia: true,
+    debug: false,
+    detectSpeakingEvents: true,
+    nick: x_data.nick,
+    autoAdjustMic: true,
+    // Add the new peerConnectionConfig object
+    peerConnectionConfig: x_data.peerConnectionConfig,
+    url: x_data.url+"?token="+x_data.signalToken
+  });
 
 	// when it's ready, join if we got a room from the URL
 	webrtc.on('readyToCall', function () {
