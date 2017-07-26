@@ -1,0 +1,86 @@
+<style>
+#side_container {
+	margin: 0 auto;
+	width: 250px;
+}
+#remotes video {
+	height: 150px;
+}
+#localVideo {
+	width: 250px;
+}
+.videoContainer {
+	position: relative;
+	height: 150px;
+	margin: 10px 0;
+}
+.videoContainer video {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+}
+.volume {
+	position: absolute;
+	left: 15%;
+	width: 70%;
+	bottom: 5px;
+	height: 10px;
+	display: none;
+}
+/* https://stackoverflow.com/a/21752471/1027723 */
+@keyframes fadeInOut {
+	 0% {
+	 opacity: 0;
+	}
+	 16% {
+	 opacity: 1;
+	}
+	 84% {
+	 opacity: 1;
+	}
+	 100% {
+	 opacity: 0;
+	}
+}
+.connectionstate {
+	position: absolute;
+	top: 0px;
+	width: 100%;
+	text-align: center;
+	color: #fff;
+	opacity: 0;
+	text-align: center;
+	-webkit-animation: fadeInOut 6s;
+	animation: fadeInOut 6s;
+}
+#localScreenContainer {
+	display: none;
+}
+.muted, .paused {
+
+}
+.muted {
+
+}
+.paused {
+
+}
+.videoContainer button {
+	position: absolute;
+	top: 5px;
+	opacity: 0;
+	cursor: pointer;
+	transition: opacity 0.5s ease-in-out;
+	-moz-transition: opacity 0.5s ease-in-out;
+	-webkit-transition: opacity 0.5s ease-in-out;
+}
+#local_audio, [id^=mute_but] {
+	left: 30px;
+}
+#local_video {
+	right: 30px;
+}
+.videoContainer:hover button {
+	opacity: 1;
+}
+</style>
