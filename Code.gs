@@ -54,10 +54,9 @@ function getXData(){
   var nick = Session.getActiveUser().getEmail();
   nick = nick.substring(0, nick.indexOf("@"));
   
+  // Xirsys token, signal server and TURN/STUN credentials
   var signalToken = request_('https://es.xirsys.com/_token/SidebarVideoChat/', 'PUT');
-  
-  var signalUrl = request_('https://es.xirsys.com/_host?type=signal', 'GET');
-  
+  var signalUrl = request_('https://es.xirsys.com/_host/SidebarVideoChat/?type=signal', 'GET');
   var peerConnectionConfig = request_('https://global.xirsys.net/_turn/SidebarVideoChat/', 'PUT');
   
   if (peerConnectionConfig.v !=null && signalUrl.v !=null){

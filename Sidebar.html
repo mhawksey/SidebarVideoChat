@@ -3,7 +3,6 @@
 <head>
 <link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">
 <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
-<script src="//www.gstatic.com/firebasejs/4.1.3/firebase.js"></script>
 <?!= include('simplewebrtc.bundle.js'); ?>
 <?!= include('simplewebrtc.connection.js'); ?>
 <?!= include('style.css'); ?>
@@ -26,10 +25,12 @@ $(function() {
   google.script.run.withSuccessHandler(start).getXData(); 
 });
 
+/* below code modified from examples on https://simplewebrtc.com/notsosimple.html */
           
 //success callback handler which should provide peerConnectionConfig data
 function start(d) {
   x_data = d;
+  console.log(x_data);
   // create our webrtc connection
   var webrtc = new SimpleWebRTC({
     // the id/element dom element that will hold "our" video
@@ -43,13 +44,14 @@ function start(d) {
     nick: x_data.nick,
     autoAdjustMic: true,
     secure: 1,
-    // Add the new peerConnectionConfig object
+    // Add the new peerConnectionConfig object STUN/TURN
     peerConnectionConfig: x_data.peerConnectionConfig,
-    /* url: false, //x_data.url,
+    // tried a Xirsys signal server ... not sure if issue is looking for socket.io but xirsys is websocket
+    /*url: x_data.url, // by not providing a url defaults to simplewebrtc.com signal server which shouldn't be used in production https://simplewebrtc.com/notsosimple.html
     socketio: {path: '/ws',
                protocol: 'wss',
                query: {token: x_data.signalToken}},*/
-    //connection: connection  
+    //connection: connection // rewriting the connection might be an option see https://github.com/xirdev/xsdk/blob/master/lib/xirsys.simplewebrtc.connection.js  
   });
 
 	// when it's ready, join if we got a room from the URL
