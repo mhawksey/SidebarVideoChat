@@ -46,7 +46,7 @@ function onInstall(e) {
 function showSidebar() {
   var ui = HtmlService.createTemplateFromFile('Sidebar')
       .evaluate()
-      .setTitle('Sidebar Video Chat');
+      .setTitle('Video Chat');
   DocumentApp.getUi().showSidebar(ui);
 }
 
@@ -54,26 +54,34 @@ function getXData(){
   var nick = Session.getActiveUser().getEmail();
   nick = nick.substring(0, nick.indexOf("@"));
   
+  var peerConnectionConfig = request_('https://global.xirsys.net/_turn/SidebarVideoChat/', 'PUT');
   var signalToken = request_('https://es.xirsys.com/_token/SidebarVideoChat/', 'PUT');
-  
   var signalUrl = request_('https://es.xirsys.com/_host?type=signal', 'GET');
   
-  var peerConnectionConfig = request_('https://global.xirsys.net/_turn/SidebarVideoChat/', 'PUT');
-  
-  if (peerConnectionConfig.v !=null && signalUrl.v !=null){
-    var x_data = {
-               peerConnectionConfig: peerConnectionConfig.v,
-               url: signalUrl.v,
-               signalToken: signalToken.v,
-               room: DocumentApp.getActiveDocument().getId(),
-               nick: nick
-    };
-    return x_data;
-  } else {
-    return false;
-  }
+  var xirsysConnect = {
+	secureTokenRetrieval : false,
+    data : {
+		domain : 'google.com',
+		application : 'SidebarVideoChat',
+		room : DocumentApp.getActiveDocument().getId(),
+        signalUrl : signalUrl,
+        signalToken : signalToken,
+		ident : 'mhawksey',
+		secret : 'a96470d6-67c8-11e7-9089-eb8da253ad29',
+		secure : 1,
+        peerConnectionConfig : peerConnectionConfig,
+        
+	},
+    /*
+        channel : 'https://global.xirsys.net/_turn/SidebarVideoChat/',
+		btoa : Utilities.base64Encode('mhawksey:a96470d6-67c8-11e7-9089-eb8da253ad29'),
+		room : DocumentApp.getActiveDocument().getId(),
+		secure : 1
+	}*/
+    nick : nick
+  };
+  return xirsysConnect;
 }
-
 /**
 * Handle API request to Twitter.
 *
@@ -97,7 +105,6 @@ function request_(url, method, optParam){
     return e;
   }
 }
-
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename)
       .getContent();

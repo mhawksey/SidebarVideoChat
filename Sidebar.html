@@ -3,10 +3,98 @@
 <head>
 <link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">
 <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
-<script src="//www.gstatic.com/firebasejs/4.1.3/firebase.js"></script>
 <?!= include('simplewebrtc.bundle.js'); ?>
-<?!= include('simplewebrtc.connection.js'); ?>
-<?!= include('style.css'); ?>
+<?!= include('xirsys.core.js'); ?>
+<?!= //include('xirsys.api.js'); ?>
+<?!= include('xirsys.signal.js'); ?>
+<?!= include('xirsys.simplewebrtc.connection.js'); ?>
+<?!= include('xirsys.simplewebrtc.js'); ?>
+<style>
+#side_container {
+	margin: 0 auto;
+	width: 250px;
+}
+#remotes video {
+	height: 150px;
+}
+#localVideo {
+	width: 250px;
+}
+.videoContainer {
+	position: relative;
+	height: 150px;
+	margin: 10px 0;
+}
+.videoContainer video {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+}
+.volume {
+	position: absolute;
+	left: 15%;
+	width: 70%;
+	bottom: 5px;
+	height: 10px;
+	display: none;
+}
+/* https://stackoverflow.com/a/21752471/1027723 */
+@keyframes fadeInOut {
+	 0% {
+	 opacity: 0;
+	}
+	 16% {
+	 opacity: 1;
+	}
+	 84% {
+	 opacity: 1;
+	}
+	 100% {
+	 opacity: 0;
+	}
+}
+.connectionstate {
+	position: absolute;
+	top: 0px;
+	width: 100%;
+	text-align: center;
+	color: #fff;
+	opacity: 0;
+	text-align: center;
+	-webkit-animation: fadeInOut 6s;
+	animation: fadeInOut 6s;
+}
+#localScreenContainer {
+	display: none;
+}
+.muted, .paused {
+
+}
+.muted {
+
+}
+.paused {
+
+}
+.videoContainer button {
+	position: absolute;
+	top: 5px;
+	opacity: 0;
+	cursor: pointer;
+	transition: opacity 0.5s ease-in-out;
+	-moz-transition: opacity 0.5s ease-in-out;
+	-webkit-transition: opacity 0.5s ease-in-out;
+}
+#local_audio, [id^=mute_but] {
+	left: 30px;
+}
+#local_video {
+	right: 30px;
+}
+.videoContainer:hover button {
+	opacity: 1;
+}
+</style>
 </head>
 <body>
 <div id="side_container">
@@ -20,42 +108,40 @@
 </div>
 <script>
    
-var x_data;
+var xirsysConnect = {};
+var webrtc = new $xirsys.simplewebrtc({iceUrl:'https://global.xirsys.net/_turn/SidebarVideoChat/'});
 
 $(function() {
-  google.script.run.withSuccessHandler(start).getXData(); 
+  google.script.run.withSuccessHandler(init).getXData(); 
 });
 
-          
+function init(d){
+  xirsysConnect = d;
+  webrtc.connect(
+                xirsysConnect.data,
+                {
+                    localVideoEl: 'localVideo', // the id/dom element to hold "our" video
+                    remoteVideosEl: '', // the id/dom element to hold remote videos // Should this be 'remotes' instead?
+                    autoRequestMedia: true, // immediately ask for camera access
+                    debug: false,
+                    detectSpeakingEvents: true,
+                    nick: d.nick,
+                    autoAdjustMic: true,
+                    socketio: {path: '/ws',
+                       protocol: 'wss',
+                       query: {token: xirsysConnect.data.signalToken.v}},
+                    },
+                application
+            );
+}
+    
 //success callback handler which should provide peerConnectionConfig data
-function start(d) {
-  x_data = d;
-  // create our webrtc connection
-  var webrtc = new SimpleWebRTC({
-    // the id/element dom element that will hold "our" video
-    localVideoEl: 'localVideo',
-    // the id/element dom element that will hold remote videos
-    remoteVideosEl: '',
-    // immediately ask for camera access
-    autoRequestMedia: true,
-    debug: false,
-    detectSpeakingEvents: true,
-    nick: x_data.nick,
-    autoAdjustMic: true,
-    secure: 1,
-    // Add the new peerConnectionConfig object
-    peerConnectionConfig: x_data.peerConnectionConfig,
-    /* url: false, //x_data.url,
-    socketio: {path: '/ws',
-               protocol: 'wss',
-               query: {token: x_data.signalToken}},*/
-    //connection: connection  
-  });
-
+function application($inst) {
+	console.log('Application start. Room: '+xirsysConnect.data.room);
 	// when it's ready, join if we got a room from the URL
+    webrtc.prepareRoom(xirsysConnect.data.room);
 	webrtc.on('readyToCall', function () {
-		console.log(x_data.room);
-		webrtc.joinRoom(x_data.room);
+		webrtc.joinRoom(xirsysConnect.data.room);
 	});
 
 	 // we got access to the camera
@@ -100,6 +186,17 @@ function start(d) {
 			vol.low = -40;
 			vol.high = -25;
 			container.appendChild(vol);
+            
+            // add mute button
+            var mute_but = document.createElement('button');
+            mute_but.id = 'mute_but_' + peer.id;
+            mute_but.className = 'create';
+            container.appendChild(mute_but);
+            
+            // add if muted 
+			var muted = document.createElement('span');
+			vol.className = 'muted';
+			container.appendChild(muted);
             
 			// show the ice connection state
 			if (peer && peer.pc) {
@@ -148,9 +245,14 @@ function start(d) {
 		showVolume(document.getElementById('localVolume'), volume);
 	});
 	// remote volume has changed
-	webrtc.on('remoteVolumeChange', function (peer, volume) {
+    webrtc.on('channelMessage', function (peer, label, data) {
+      if (data.type == 'volume') {
+        showVolume(document.getElementById('volume_' + peer.id), data.volume);
+      }
+    });
+	/*webrtc.on('remoteVolumeChange', function (peer, volume) {
 		showVolume(document.getElementById('volume_' + peer.id), volume);
-	});
+	});*/
 
 	// local p2p/ice failure
 	webrtc.on('iceFailed', function (peer) {
@@ -193,7 +295,6 @@ function start(d) {
 			}
 		});
 	});
-    
     
     (function($){
        $(function(){
